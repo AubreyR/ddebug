@@ -1,0 +1,297 @@
+#!/bin/bash
+#
+# Drupal Core Hack Debugging Script v0.9beta
+# Aubrey Robertson
+# August 2016
+#
+# With help from:
+#   Robert Siemer - http://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash/33826763#answer-29754866
+#
+# Dependencies:
+#   grep (GNU grep) 2.25 or higher
+#   sed (GNU sed) 4.2.2 or higher
+#   kalabox 0.13.0-beta.2 or higher
+#   kalabox Drush 8.0.5 or higher
+#   Drush 8.1.2 or higher
+#   git 2.7.4 or higher
+#
+# Arguments:
+#   -h or --hook: toggle hook output on or off
+#   -f or --function: toggle theme function output on or off
+#   -t or --template: toggle template output on or off
+#   none: Show status and display help
+#
+# Notes: This should play nicely with git, however, it would be prudent to avoid
+#        pushing upstream while any of these options are turned on.
+#
+# TODOs:
+# Return Values: Put exit statuses here
+#
+# List of omitted hooks (to shrink output) (Put these somewhere good):
+#   hook_field_access
+#   hook_panelizer_access
+#
+# Fix styling, we have many lines that exceed the 80 char limit and our conditionals are all over the place
+#
+# Add various output options: i.e. show hook output in a file instead of in the drupal interface
+#
+# Add implemented by flag
+#
+# Add Kalabox dependency flag
+#
+# Add a tool to diff two different page loads and only show hooks on the right
+#
+# Add option to whitelist hooks that always show on every page load (to find special hooks)
+
+# CONSTANTS
+green=$(tput setaf 2)
+red=$(tput setaf 1)
+normal=$(tput sgr0)
+
+# FUNCTIONS:
+# Display ddebug status flags
+function ddebug_status () {
+  printf "#############################################\n"
+  printf "###    DDEBUG Drupal Core Hack Status     ###\n"
+  printf "#############################################\n"
+  if [[ -e "$htoggle" ]]; then
+    printf "%40s\n" "# Hook Output:                     ${green}ON${normal}       #"
+  else
+    printf "%40s\n" "# Hook Output:                     ${red}OFF${normal}      #"
+  fi
+  if [[ -e "$ftoggle" ]]; then
+    printf "%40s\n" "# Function Output:                 ${green}ON${normal}       #"
+  else
+    printf "%40s\n" "# Function Output:                 ${red}OFF${normal}      #"
+  fi
+  if [[ -e "$ttoggle" ]]; then
+    printf "%40s\n" "# Template Output:                 ${green}ON${normal}       #"
+  else
+    printf "%40s\n" "# Template Output:                 ${red}OFF${normal}      #"
+  fi
+  printf "#############################################\n"
+}
+
+# Display Help Commands
+function ddebug_help () {
+  printf "#############################################\n"
+  printf "#                 Commands                  #\n"
+  printf "#############################################\n"
+  printf "# -h or --hook: toggle hook output          #\n"
+  printf "# -f or --function: toggle function output  #\n"
+  printf "# -t or --template: toggle template output  #\n"
+  printf "#############################################\n"
+}
+
+# BEGIN GETOPT SETUP (Based on script by Robert Siemer - Stack Overflow)
+getopt --test > /dev/null
+if [[ "$?" != 4 ]]; then
+  echo "I’m sorry, `getopt --test` failed in this environment. (getopt dependency missing)"
+  exit 1
+fi
+
+SHORT=hft
+LONG=hook,function,template
+
+# -temporarily store output to be able to check for errors
+# -activate advanced mode getopt quoting e.g. via “--options”
+# -pass arguments only via   -- "$@"   to separate them correctly
+PARSED=`getopt --options "$SHORT" --longoptions "$LONG" --name "$0" -- "$@"`
+if [[ "$?" != 0 ]]; then
+  # e.g. $? == 1
+  #   then getopt has complained about wrong arguments to stdout
+  exit 3
+fi
+# use eval with "$PARSED" to properly handle the quoting
+eval set --"$PARSED"
+
+# now enjoy the options in order and nicely split until we see --
+while true; do
+  case "$1" in
+    -h|--hook)
+      h=y
+      shift
+      ;;
+    -f|--function)
+      f=y
+      shift
+      ;;
+    -t|--template)
+      t=y
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo "Programming error"
+      exit 4
+      ;;
+  esac
+done
+# END GETOPT SETUP
+
+# BEGIN BASIC INPUT ERROR CHECKING
+# check if the git root exists
+gitroot=`git rev-parse --show-toplevel 2>/dev/null`
+if [[ "$?" != 0 ]]; then
+  echo "$0: no git root detected here!"
+  exit 5
+fi
+
+# check that the git root is also a drupal root
+drush status root | grep $gitroot &>/dev/null
+if [[ "$?" != 0 ]]; then
+  echo "$0: must be run from a folder in which the top-level git root is also a drupal root!"
+  exit 6
+fi
+# END BASIC ERROR INPUT CHECKING
+
+# BEGIN SELF-DEPLOYMENT
+# check if the project-specific control folder exists, if it doesn't create it and add it to the gitignore for that project
+controldirectory="$gitroot/.ddebug"
+if [[ ! -d "$controldirectory" ]]; then
+  mkdir "$controldirectory"
+  printf "$0: control directory added (.ddebug)\n"
+  grep 'ddebug' "$gitroot/.gitignore" &>/dev/null
+  if [[ "$?" != 0 ]]; then
+    printf "\n# ddebug #\n##########\n.ddebug/\n" >> "$gitroot/.gitignore"
+    stashresult=`git stash`
+    git add "$gitroot/.gitignore"
+    git commit -m "DDEBUG: updated .gitignore"
+    if [[ "$stashresult" != 'No local changes to save' ]]; then
+      git stash pop
+    fi
+  fi
+fi
+# END SELF-DEPLOYMENT
+
+# Toggle system
+htoggle="$controldirectory/.htoggle"
+ftoggle="$controldirectory/.ftoggle"
+ttoggle="$controldirectory/.ttoggle"
+
+# BEGIN ADVANCED ERROR CHECKING
+# defining this conditional here because we will use it a couple of times:
+bothtf=0; [[ "$f" == "y" && "$t" == "y" ]] && bothtf=1
+# f command is passed without t AND f is off AND t is on
+fwithoutt=0; [[ "$f" == "y" && -z ${t+x} && ! -e "$ftoggle " && -e "$ttoggle" ]] && fwithoutt=1
+# t command is passed without f AND t is off AND f is on
+twithoutf=0; [[ "$t" == "y" && -z ${f+x} && ! -e "$ttoggle" && -e "$ftoggle" ]] && twithoutf=1
+# both f and t are off AND f AND t commands are passed:
+tfbothoffpassed=0; [[ ! -e "$ttoggle" && ! -e "$ftoggle" && "$bothtf" == 1 ]] && tfbothoffpassed=1
+# Check mutual exclusivity of f and t commands here
+if [[ "$fwithoutt" == 1 || "$twithoutf" == 1 || "$tfbothoffpassed" == 1 ]]; then
+  ddebug_status
+  echo "$0: theme function output (-f) and theme template output (-t) are mutually exclusive (this command combination fails when both are turned on at the same time)"
+  exit 2
+fi
+# END ADVANCED ERROR CHECKING
+
+# BEING TOOL IMPLEMENTATION
+# check h command here
+if [[ "$h" == "y" ]]; then
+  targetfile="$gitroot/includes/module.inc"
+  targetstring='function module_implements($hook, $sort = FALSE, $reset = FALSE) {'
+  targetlinenumber=`grep -n "$targetfile" -e "$targetstring" | cut -d : -f 1`
+  if [[ -e "$htoggle" ]]; then
+    rm "$htoggle"
+    mv "$controldirectory/module.inc.bak" "$targetfile"
+    git update-index --skip-worktree "$targetfile"
+    kbox drush cache-clear all
+  else
+    touch "$htoggle"
+    # Add one (or more) line of code after the target line
+    tab="\ \ "
+    newline=$'drupal_set_message("hook_$hook");\n'
+    sed -i.bak "$targetlinenumber a $tab$newline" "$targetfile"
+    mv "$targetfile.bak" "$controldirectory/"
+    git update-index --skip-worktree "$targetfile"
+    kbox drush -q cache-clear all
+    printf "'all'"' cache was cleared.                                             [1;32;40m[1m[success][0m\n'
+  fi
+fi
+
+# check t function is predefined because we have to be careful of race condition depending on what order the commands are passed to the tool
+function check_f () {
+  if [[ "$f" == "y" ]]; then
+    targetfile="$gitroot/includes/theme.inc"
+    if [[ -e "$ftoggle" ]]; then
+        rm "$ftoggle"
+        mv "$controldirectory/theme.inc.bak" "$targetfile"
+        git update-index --skip-worktree "$targetfile"
+        kbox drush cache-clear all
+      else
+        touch "$ftoggle"
+        targetstring="\$output = \$info\\['function'\\](\$variables);"
+        targetlinenumber=`grep -n "$targetfile" -e "$targetstring" | cut -d : -f 1`
+        newline='      $output = '"'"'<div style="border-style: dashed; border-width: thin; border-color: #9d1e15;"> <p style="background-color: white; color: black; display: inline-block;">'"'"' . $info['"'"'function'"'"'] . "</p>";\
+      $output .= $info['"'"'function'"'"']($variables);\
+      $output .= '"'"'</div>'"'"';'
+        sedoperator=s
+        sed -i.bak "$targetlinenumber$sedoperator@.*@$newline@" "$targetfile"
+        mv "$targetfile.bak" "$controldirectory/"
+        git update-index --skip-worktree "$targetfile"
+        kbox drush cache-clear all
+    fi
+  fi
+}
+
+# check t function is predefined because we have to be careful of race condition depending on what order the commands are passed to the tool
+function check_t () {
+  if [[ "$t" == "y" ]]; then
+    targetfile="$gitroot/includes/theme.inc"
+    if [[ -e "$ttoggle" ]]; then
+        rm "$ttoggle"
+        mv "$controldirectory/theme.inc.bak" "$targetfile"
+        git update-index --skip-worktree "$targetfile"
+        kbox drush cache-clear all
+      else
+        touch "$ttoggle"
+        targetstring1='$output = _theme_render_template_debug($render_function, $template_file, $variables, $extension);'
+        targetstring2='$output = $render_function($template_file, $variables);'
+        targetlinenumber1=`grep -n "$targetfile" -e "$targetstring1" | cut -d : -f 1`
+        targetlinenumber2=`grep -n "$targetfile" -e "$targetstring2" | cut -d : -f 1`
+        newline1='      $output = '"'"'<div style="border-style: dashed; border-width: thin; border-color: #9d1e15;"> <p style="background-color: white; color: black; display: inline-block;">'"'"' . $hook . $extension . "</p>";\
+      $output .= _theme_render_template_debug($render_function, $template_file, $variables, $extension);\
+      $output .= '"'"'</div>'"'"';'
+        newline2='      $output = '"'"'<div style="border-style: dashed; border-width: thin; border-color: #9d1e15;"> <p style="background-color: white; color: black; display: inline-block;">'"'"' . $hook . $extension . "</p>";\
+      $output .= $render_function($template_file, $variables);\
+      $output .= '"'"'</div>'"'"';'
+        sedoperator=s
+        sed -i.bak "$targetlinenumber1$sedoperator@.*@$newline1@
+        $targetlinenumber2$sedoperator@.*@$newline2@" "$targetfile"
+        mv "$targetfile.bak" "$controldirectory/"
+        git update-index --skip-worktree "$targetfile"
+        kbox drush cache-clear all
+    fi
+  fi
+}
+
+#check t and f here depending on command argument order (avoids race condition)
+if [[ "$bothtf" == 1 ]]; then
+  if [[ -e "$ftoggle" && ! -e "$ttoggle" ]]; then
+    # f is on and t is off
+    check_f
+    check_t
+  elif [[ -e "$ttoggle" && ! -e "$ftoggle" ]]; then
+    # f is off and t is on
+    check_t
+    check_f
+  fi
+else
+  # just one command was passed, proceed in any order
+  check_t
+  check_f
+fi
+
+if [[ "$h" != "y" && "$t" != "y" && "$f" != "y" ]]; then
+  printf "No command passed or unhandled exception\n"
+  ddebug_status
+  ddebug_help
+else
+  ddebug_status
+fi
+
+exit 0
