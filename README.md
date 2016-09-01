@@ -7,11 +7,11 @@ Drupal Core Hack Debugging Script
 * This script allows Drupal developers to see all hooks as they are triggered by Drupal core, all template files as they are parsed, and all render functions as they are parsed.  All output is currently displayed directly on the Drupal website itself, which allows the developer to see the components rendered within the display itself instead of having to dig through code.
 * Version - 0.9beta
 
-**NEVER EVER DEPLOY THIS IN A DRUPAL PRODUCTION ENVIRONMENT**
+* **NEVER EVER DEPLOY THIS IN A DRUPAL PRODUCTION ENVIRONMENT**
 
-**NEVER EVER DEPLOY THIS IN A DRUPAL PRODUCTION ENVIRONMENT**
+* **NEVER EVER DEPLOY THIS IN A DRUPAL PRODUCTION ENVIRONMENT**
 
-**NEVER EVER DEPLOY THIS IN A DRUPAL PRODUCTION ENVIRONMENT**
+* **NEVER EVER DEPLOY THIS IN A DRUPAL PRODUCTION ENVIRONMENT**
 
 
 ### How do I get set up? ###
