@@ -12,7 +12,8 @@ Drupal Core Hack Debugging Script
 
 1. Pull repository the location you would like to install to, copy the binary to /usr/local/bin
 2. Run from inside a kbox/appname/code folder
-3. Dependencies:
+
+### Dependencies ###
 * grep (GNU grep) 2.25 or higher
 * sed (GNU sed) 4.2.2 or higher
 * kalabox 0.13.0-beta.2 or higher
