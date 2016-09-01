@@ -5,17 +5,20 @@ Drupal Core Hack Debugging Script
 ### What is this repository for? ###
 
 * This script allows Drupal developers to see all hooks as they are triggered by Drupal core, all template files as they are parsed, and all render functions as they are parsed.  All output is currently displayed directly on the Drupal website itself, which allows the developer to see the components rendered within the display itself instead of having to dig through code.
-* Version 0.9beta
+* Version - 0.9beta
 
 
 ### How do I get set up? ###
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+1. Pull repository the location you would like to install to, copy the binary to /usr/local/bin
+2. Run from inside a kbox/appname/code folder
+3. Dependencies:
+*   grep (GNU grep) 2.25 or higher
+*   sed (GNU sed) 4.2.2 or higher
+*   kalabox 0.13.0-beta.2 or higher
+*   kalabox Drush 8.0.5 or higher
+*   Drush 8.1.2 or higher
+*   git 2.7.4 or higher
 
 ### Contribution guidelines ###
 
