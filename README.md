@@ -4,9 +4,9 @@ Drupal Core Hack Debugging Script
 
 ### What is this repository for? ###
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+* This script allows Drupal developers to see all hooks as they are triggered by Drupal core, all template files as they are parsed, and all render functions as they are parsed.  All output is currently displayed directly on the Drupal website itself, which allows the developer to see the components rendered within the display itself instead of having to dig through code.
+* Version 0.9beta
+
 
 ### How do I get set up? ###
 
@@ -25,5 +25,6 @@ Drupal Core Hack Debugging Script
 
 ### Who do I talk to? ###
 
-* Author: Aubrey Robertson - Co-op Student - aubrey.viu@gmail.com
+* Author: Aubrey Robertson - Co-op Student Technician - aubrey.viu@gmail.com
 * Supervisor: Michael Carpenter - Web Manager - michael.carpenter@viu.ca
+* Team Lead: Darryl Woods - Programmer Analyst - darryl.woods@viu.ca
