@@ -11,9 +11,9 @@ Drupal Core Hack Debugging Script
 
 ### How do I get set up? ###
 
-1. Pull repository the location you would like to install to, copy the binary to /usr/local/bin
+1. Pull repository the location you would like to install to, copy the binary to `/usr/local/bin`
 2. Chmod the file so that it's executable (if it's not already)
-3. Run from inside a kbox/appname/code folder
+3. Run from inside a `../kbox/appname/code` folder
 
 ### Dependencies ###
 * grep (GNU grep) 2.25 or higher
