@@ -204,7 +204,17 @@ if [[ "$h" == "y" ]]; then
     touch "$htoggle"
     # Add one (or more) line of code after the target line
     tab="\ \ "
-    newline=$'drupal_set_message("hook_$hook");\n'
+    newline='global $blacklist;\
+  include_once DRUPAL_ROOT . '"'"'/.ddebug/blacklist.cfg.inc'"'"';\
+  $ddebug_hide_output = FALSE;\
+  foreach ($blacklist as $pattern) {\
+    if (fnmatch("$pattern", "$hook")) {\
+      $ddebug_hide_output = TRUE;\
+    }\
+  }\
+  if (!$ddebug_hide_output) {\
+    drupal_set_message("hook_$hook");\
+  }'
     sed -i.bak "$targetlinenumber a $tab$newline" "$targetfile"
     mv "$targetfile.bak" "$controldirectory/"
     git update-index --skip-worktree "$targetfile"
